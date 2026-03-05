@@ -1,9 +1,12 @@
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  const { word } = req.body;
+  if (req.method === "OPTIONS") return res.status(200).end();
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  const { word } = req.body || {};
   if (!word) return res.status(400).json({ error: "No word provided" });
 
   try {
@@ -31,12 +34,18 @@ Keep language very simple and encouraging. Use emoji sparingly in howToSay and f
     });
 
     const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Anthropic error:", data);
+      return res.status(500).json({ error: "Anthropic API error", detail: data });
+    }
+
     const text = data.content?.map((b) => b.text || "").join("") || "";
     const cleaned = text.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleaned);
     res.status(200).json(parsed);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Something went wrong" });
+    console.error("Handler error:", err);
+    res.status(500).json({ error: err.message });
   }
 }
